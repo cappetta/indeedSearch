@@ -7,9 +7,11 @@ import inspect
 import urllib2
 import time
 import threading
+from Queue import Queue
 
 from SearchResults import SearchResults
 from PostalCodes import PostalCodes
+# from Logger import Logger as logger
 
 import yaml
 
@@ -19,15 +21,11 @@ _creds = yaml.load(creds_file)
 queries_file = open('../yaml/queries.yaml', 'r')
 _queries = yaml.load(queries_file)
 
-# from Logger import Logger as logger
-
-
 
 #########################################################
 # Logging Initialization
 #########################################################
 timestamp = time.strftime("%m%d%Y")
-# logdir = '/tmp/indeedSearch/'
 logdir = '../data_files/'
 logfile = logdir + "indeed_job_search_" + timestamp + ".log"
 dict_of_jobs_by_state = dict()
@@ -58,7 +56,6 @@ class IndeedSearch:
     _url+='&v=2'
     _url+='&format=json'
 
-    # queries = ['qa'] # ,'cih', 'seim', 'security operations center']
     queries = _queries["queries"]
     _url_update         = _url
     _currentQuery       = ''
@@ -91,12 +88,10 @@ class IndeedSearch:
         if _consoleTrace: log.debug("url update : [{url}]".format(url=self._url_update))
         return self._url_update
 
-
-
     # def queryAPI(self, url=_url_update + "&q=''", dataFile='indeed_datafile_', query='qa', zipcode=''): #, max_conn=''):
     def queryAPI(self, **kwargs):
 
-            # todo: loop through yesterday's selenium events and perform data
+        # todo: loop through yesterday's selenium events and perform data
         url         = kwargs["url"]
         zipcode     = kwargs["zipcode"]
         query       = kwargs["query"]
@@ -132,7 +127,7 @@ class IndeedSearch:
         if debug: print "**** Executing Query - End ****"
 
 
-    #  need to convert *fields to **fields and leverage kwargs
+    # todo:  need to convert code and leverage kwargs
     def parseJSON(self, data, **fields):
 
         if debug:
@@ -155,7 +150,7 @@ class IndeedSearch:
         # todo: review logic which attempts to gracefully handle unknown / empty states
         for field in fields:
             if (field == 'totalResults'):
-            #todo: if total results > 1000 then the query needs to be redefined as all results have not been captured.
+                #todo: if total results > 1000 then the query needs to be redefined as all results have not been captured.
                 # I can't parse more than 1000 results due to api limitations
                 array.append(jsonData[field])
                 if _consoleTrace: log.debug("Metadata: {field} == {value}".format(field=field, value=jsonData[field]))
@@ -165,7 +160,7 @@ class IndeedSearch:
                     break
                 else:
                     self._moreResults=True
-                # assert jsonData[field] > 100
+                    # assert jsonData[field] > 100
             elif(field == 'totalResults'):
                 if _consoleTrace: log.debug("TotalResults: {results}").format(field[field])
             elif(field == 'results'):
@@ -207,25 +202,27 @@ class IndeedSearch:
                                                                            count= len(dict_of_jobs_by_state[state])))
             state_sumcheck += len(dict_of_jobs_by_state[state])
         if _consoleTrace: log.debug("state sumcheck: {sum} :: Checker: {checker}".format(sum=state_sumcheck,
-                                                                             checker=searchResults.countStateResults()))
-        # self.writeOutToFile(full_response=data.read())
+                                                                                         checker=searchResults.countStateResults()))
+        # put data on the queue and allow the Queue to manage writeOutToFile
+        self._queue.put(data.read())
         # todo: assertion error is thrown constantly
         # assert state_sumcheck == searchResults.countStateResults()
 
 
     def writeOutToFile(self, dataFile=logdir + 'indeed_resultset_' + timestamp, full_response=''):
-        try:
-            if self._initializeJsonFile: os.remove(dataFile)
-            self._initializeJsonFile = False
-        except OSError:
-            log.debug("No Data file to delete")
-        if self._persisentJsonFile:
-            f = open(dataFile, 'a')
-        else:
-            f = open(dataFile, 'w')
-        # do you want to delete any file that exists upon first execution?
+        while True:
+            try:
+                if self._initializeJsonFile: os.remove(dataFile)
+                self._initializeJsonFile = False
+            except OSError:
+                log.debug("No Data file to delete")
+            if self._persisentJsonFile:
+                f = open(dataFile, 'a')
+            else:
+                f = open(dataFile, 'w')
+            # do you want to delete any file that exists upon first execution?
 
-        f.write(full_response.encode('ascii','ignore'))
+            f.write(full_response.encode('ascii','ignore'))
         f.close()
 
 # order matters - declare the classes before using them in the main thread
@@ -238,6 +235,7 @@ def main():
     queries = search.queries
     api_threads = []
     max_conn = threading.BoundedSemaphore(2)
+    search._queue = Queue(maxsize=0)
 
     for query in queries:
 
