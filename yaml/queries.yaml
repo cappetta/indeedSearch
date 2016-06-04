@@ -1,0 +1,9 @@
+# author: cappetta
+# purpose: example list of queries for indeedSearch Script to execute, modify as desired
+---
+queries:
+  - nursing
+  - construction
+  - home depot
+  - gas station
+  - part-time

@@ -1,0 +1,9 @@
+# Created by .ignore support plugin (hsz.mobi)
+.idea/
+bin/
+.*
+*.pyc
+
+indeedSearch/data_files/indeed_resultset*
+indeedSearch/data_files/*.log
+yaml/*.yaml
