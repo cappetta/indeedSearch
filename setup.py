@@ -9,7 +9,7 @@ config = {
     'url': 'https://github.com/cappetta/indeedSearch',
     'download_url': 'https://github.com/cappetta/indeedSearch',
     'author_email': 'thomas.cappetta@gmail.com',
-    'version': '1.',
+    'version': '0.5',
     'install_requires': ['PyYAML',],
     'packages': ['indeedSearch'],
     'scripts': [],
